@@ -13,11 +13,11 @@ pull:
 debug:
 	mkdir -p build/debug && \
 	cd build/debug && \
-	cmake -DCMAKE_BUILD_TYPE=Debug -DEXTENSION_STATIC_BUILD=1 ../../duckdb/CMakeLists.txt -DEXTERNAL_EXTENSION_DIRECTORIES=${MSGPACK_EXT_PATH} -B. -S ../../duckdb && \
+	cmake -DCMAKE_BUILD_TYPE=Debug -DEXTENSION_STATIC_BUILD=0 ../../duckdb/CMakeLists.txt -DEXTERNAL_EXTENSION_DIRECTORIES=${MSGPACK_EXT_PATH} -B. -S ../../duckdb && \
 	cmake --build .
 
 release:
 	mkdir -p build/release && \
 	cd build/release && \
-	cmake -DCMAKE_BUILD_TYPE=Release -DEXTENSION_STATIC_BUILD=1 ../../duckdb/CMakeLists.txt -DEXTERNAL_EXTENSION_DIRECTORIES=${MSGPACK_EXT_PATH} -B. -S ../../duckdb && \
+	cmake -DCMAKE_BUILD_TYPE=Release -DEXTENSION_STATIC_BUILD=0 ../../duckdb/CMakeLists.txt -DEXTERNAL_EXTENSION_DIRECTORIES=${MSGPACK_EXT_PATH} -B. -S ../../duckdb && \
 	cmake --build .
