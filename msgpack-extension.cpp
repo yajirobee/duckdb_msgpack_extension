@@ -25,7 +25,11 @@ MsgpackScanLocalState::MsgpackScanLocalState(ClientContext &context,
       total_tuple_count(0) {}
 
 idx_t MsgpackScanLocalState::ReadNext(MsgpackScanGlobalState &gstate) {
-  return 0;
+  if (scan_count == 0) {
+    return ++scan_count;
+  } else {
+    return 0;
+  }
 }
 
 MsgpackGlobalTableFunctionState::MsgpackGlobalTableFunctionState(
@@ -119,6 +123,11 @@ static void ReadMsgpackFunction(ClientContext &context,
     result_vectors.reserve(gstate.column_indices.size());
     for (const auto &col_idx : gstate.column_indices) {
       result_vectors.emplace_back(&output.data[col_idx]);
+    }
+
+    for (idx_t col_idx = 0; col_idx < gstate.names.size(); col_idx++) {
+      auto data = FlatVector::GetData<int32_t>(*result_vectors[col_idx]);
+      data[0] = 1;
     }
   }
 }
