@@ -21,5 +21,5 @@ Run DuckDB CLI:
 
 Then, load the extension:
 ```sql
-LOAD 'build/release/extension/duckdb_msgpack_extension/msgpack.duckdb_extension';
+LOAD 'build/release/extension/duckdb_msgpack_extension/msgpack_ext.duckdb_extension';
 ```

@@ -1,4 +1,6 @@
 #define DUCKDB_EXTENSION_MAIN
+#include <msgpack.hpp>
+
 #include "include/msgpack-extension.hpp"
 
 #include "duckdb/common/multi_file_reader.hpp"
@@ -153,12 +155,12 @@ std::string MsgpackExtension::Name() { return "msgpack"; }
 } // namespace duckdb
 
 extern "C" {
-DUCKDB_EXTENSION_API void msgpack_init(duckdb::DatabaseInstance &db) {
+DUCKDB_EXTENSION_API void msgpack_ext_init(duckdb::DatabaseInstance &db) {
   duckdb::DuckDB db_wrapper(db);
   db_wrapper.LoadExtension<duckdb::MsgpackExtension>();
 }
 
-DUCKDB_EXTENSION_API const char *msgpack_version() {
+DUCKDB_EXTENSION_API const char *msgpack_ext_version() {
   return duckdb::DuckDB::LibraryVersion();
 }
 }
