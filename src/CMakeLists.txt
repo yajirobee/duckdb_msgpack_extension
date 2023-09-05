@@ -1,6 +1,6 @@
 find_package(msgpack-cxx REQUIRED)
 include_directories(include)
-set(MSGPACK_EXTENSION_FILES msgpack-extension.cpp)
+set(MSGPACK_EXTENSION_FILES msgpack-extension.cpp buffered_msgpack_reader.cpp)
 
 set(PARAMETERS "-warnings")
 build_loadable_extension(msgpack_ext ${PARAMETERS} ${MSGPACK_EXTENSION_FILES})

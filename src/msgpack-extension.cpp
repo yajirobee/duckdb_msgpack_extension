@@ -3,6 +3,7 @@
 
 #include "include/msgpack-extension.hpp"
 
+#include "duckdb/common/enum_util.hpp"
 #include "duckdb/common/multi_file_reader.hpp"
 #include "duckdb/main/extension_util.hpp"
 #include "duckdb/storage/buffer_manager.hpp"
@@ -11,7 +12,34 @@
 namespace duckdb {
 void MsgpackScanData::Bind(ClientContext &context,
                            TableFunctionBindInput &input) {
+  for (auto &kv : input.named_parameters) {
+    if (MultiFileReader::ParseOption(kv.first, kv.second,
+                                     options.file_options)) {
+      continue;
+    }
+    auto loption = StringUtil::Lower(kv.first);
+    if (loption == "compression") {
+      SetCompression(StringUtil::Lower(StringValue::Get(kv.second)));
+    }
+  }
+
   files = MultiFileReader::GetFileList(context, input.inputs[0], "Msgpack");
+
+  union_readers.resize(files.empty() ? 0 : files.size() - 1);
+  for (idx_t file_idx = 0; file_idx < files.size(); file_idx++) {
+    if (file_idx == 0) {
+      initial_reader =
+          make_uniq<BufferedMsgpackReader>(context, options, files[0]);
+    } else {
+      union_readers[file_idx - 1] =
+          make_uniq<BufferedMsgpackReader>(context, options, files[file_idx]);
+    }
+  }
+}
+
+void MsgpackScanData::SetCompression(const string &compression) {
+  options.compression =
+      EnumUtil::FromString<FileCompressionType>(StringUtil::Upper(compression));
 }
 
 MsgpackScanGlobalState::MsgpackScanGlobalState(
@@ -142,6 +170,8 @@ void MsgpackExtension::Load(DuckDB &db) {
                                MsgpackGlobalTableFunctionState::Init,
                                MsgpackLocalTableFunctionState::Init);
   table_function.name = "read_msgpack";
+
+  table_function.named_parameters["compression"] = LogicalType::VARCHAR;
 
   table_function.named_parameters["columns"] = LogicalType::ANY;
 

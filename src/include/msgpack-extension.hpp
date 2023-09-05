@@ -1,6 +1,8 @@
 #pragma once
 
+#include "buffered_msgpack_reader.hpp"
 #include "duckdb.hpp"
+#include "duckdb/common/multi_file_reader.hpp"
 #include "duckdb/function/table_function.hpp"
 
 namespace duckdb {
@@ -9,9 +11,18 @@ struct MsgpackScanData : public TableFunctionData {
 public:
   void Bind(ClientContext &context, TableFunctionBindInput &input);
 
+  void SetCompression(const string &compression);
+
 public:
+  //! File-specific options
+  BufferedMsgpackReaderOptions options;
+
   //! The files we're reading
   vector<string> files;
+  //! Initial file reader
+  unique_ptr<BufferedMsgpackReader> initial_reader;
+  //! The readers
+  vector<unique_ptr<BufferedMsgpackReader>> union_readers;
 
   //! Maximum messagepack oject size (defaults to 16MB minimum)
   idx_t maximum_object_size = 16777216;
@@ -21,11 +32,6 @@ public:
 };
 
 struct MsgpackScanInfo : public TableFunctionInfo {};
-
-class BufferedMsgpackReader {
-public:
-  BufferedMsgpackReader(ClientContext &context, string file_name);
-};
 
 struct MsgpackScanGlobalState {
 public:
