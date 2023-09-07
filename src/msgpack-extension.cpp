@@ -1,104 +1,11 @@
 #define DUCKDB_EXTENSION_MAIN
-#include <msgpack.hpp>
 
-#include "include/msgpack-extension.hpp"
-
-#include "duckdb/common/enum_util.hpp"
-#include "duckdb/common/multi_file_reader.hpp"
-#include "duckdb/main/extension_util.hpp"
-#include "duckdb/storage/buffer_manager.hpp"
 #include "msgpack-extension.hpp"
 
+#include "duckdb/common/multi_file_reader.hpp"
+#include "duckdb/main/extension_util.hpp"
+
 namespace duckdb {
-void MsgpackScanData::Bind(ClientContext &context,
-                           TableFunctionBindInput &input) {
-  for (auto &kv : input.named_parameters) {
-    if (MultiFileReader::ParseOption(kv.first, kv.second,
-                                     options.file_options)) {
-      continue;
-    }
-    auto loption = StringUtil::Lower(kv.first);
-    if (loption == "compression") {
-      SetCompression(StringUtil::Lower(StringValue::Get(kv.second)));
-    }
-  }
-
-  files = MultiFileReader::GetFileList(context, input.inputs[0], "Msgpack");
-
-  union_readers.resize(files.empty() ? 0 : files.size() - 1);
-  for (idx_t file_idx = 0; file_idx < files.size(); file_idx++) {
-    if (file_idx == 0) {
-      initial_reader =
-          make_uniq<BufferedMsgpackReader>(context, options, files[0]);
-    } else {
-      union_readers[file_idx - 1] =
-          make_uniq<BufferedMsgpackReader>(context, options, files[file_idx]);
-    }
-  }
-}
-
-void MsgpackScanData::SetCompression(const string &compression) {
-  options.compression =
-      EnumUtil::FromString<FileCompressionType>(StringUtil::Upper(compression));
-}
-
-MsgpackScanGlobalState::MsgpackScanGlobalState(
-    ClientContext &context, const MsgpackScanData &bind_data_p)
-    : bind_data(bind_data_p),
-      allocator(BufferManager::GetBufferManager(context).GetBufferAllocator()),
-      buffer_capacity(bind_data.maximum_object_size * 2), file_index(0),
-      batch_index(0) {}
-
-MsgpackScanLocalState::MsgpackScanLocalState(ClientContext &context,
-                                             MsgpackScanGlobalState &gstate)
-    : scan_count(0), batch_index(DConstants::INVALID_INDEX), total_read_size(0),
-      total_tuple_count(0) {}
-
-idx_t MsgpackScanLocalState::ReadNext(MsgpackScanGlobalState &gstate) {
-  if (scan_count == 0) {
-    return ++scan_count;
-  } else {
-    return 0;
-  }
-}
-
-MsgpackGlobalTableFunctionState::MsgpackGlobalTableFunctionState(
-    ClientContext &context, TableFunctionInitInput &input)
-    : state(context, input.bind_data->Cast<MsgpackScanData>()) {}
-
-unique_ptr<GlobalTableFunctionState>
-MsgpackGlobalTableFunctionState::Init(ClientContext &context,
-                                      TableFunctionInitInput &input) {
-  auto &bind_data = input.bind_data->Cast<MsgpackScanData>();
-  auto result = make_uniq<MsgpackGlobalTableFunctionState>(context, input);
-  auto &gstate = result->state;
-
-  // Perform projection pushdown
-  for (idx_t col_idx = 0; col_idx < input.column_ids.size(); col_idx++) {
-    const auto &col_id = input.column_ids[col_idx];
-
-    gstate.column_indices.push_back(col_idx);
-    gstate.names.push_back(bind_data.names[col_id]);
-  }
-
-  return std::move(result);
-}
-
-MsgpackLocalTableFunctionState::MsgpackLocalTableFunctionState(
-    ClientContext &context, MsgpackScanGlobalState &gstate)
-    : state(context, gstate) {}
-
-unique_ptr<LocalTableFunctionState>
-MsgpackLocalTableFunctionState::Init(ExecutionContext &context,
-                                     TableFunctionInitInput &input,
-                                     GlobalTableFunctionState *global_state) {
-  auto &gstate = global_state->Cast<MsgpackGlobalTableFunctionState>();
-  auto result =
-      make_uniq<MsgpackLocalTableFunctionState>(context.client, gstate.state);
-
-  return std::move(result);
-}
-
 unique_ptr<FunctionData> ReadMsgpackBind(ClientContext &context,
                                          TableFunctionBindInput &input,
                                          vector<LogicalType> &return_types,

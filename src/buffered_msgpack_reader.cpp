@@ -254,31 +254,6 @@ idx_t BufferedMsgpackReader::GetLineNumber(idx_t buf_index,
   }
 }
 
-void BufferedMsgpackReader::ThrowParseError(idx_t buf_index,
-                                            idx_t line_or_object_in_buf,
-                                            yyjson_read_err &err,
-                                            const string &extra) {
-  string unit = options.format == MsgpackFormat::NEWLINE_DELIMITED
-                    ? "line"
-                    : "record/value";
-  auto line = GetLineNumber(buf_index, line_or_object_in_buf);
-  throw InvalidInputException(
-      "Malformed Msgpack in file \"%s\", at byte %llu in %s %llu: %s. %s",
-      file_name, err.pos + 1, unit, line + 1, err.msg, extra);
-}
-
-void BufferedMsgpackReader::ThrowTransformError(idx_t buf_index,
-                                                idx_t line_or_object_in_buf,
-                                                const string &error_message) {
-  string unit = options.format == MsgpackFormat::NEWLINE_DELIMITED
-                    ? "line"
-                    : "record/value";
-  auto line = GetLineNumber(buf_index, line_or_object_in_buf);
-  throw InvalidInputException(
-      "Msgpack transform error in file \"%s\", in %s %llu: %s", file_name, unit,
-      line, error_message);
-}
-
 double BufferedMsgpackReader::GetProgress() const {
   if (IsOpen()) {
     return 100.0 - 100.0 * double(file_handle->Remaining()) /
