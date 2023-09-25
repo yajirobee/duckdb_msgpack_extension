@@ -245,9 +245,10 @@ void MsgpackScanLocalState::ParseNextChunk() {
 
   for (; scan_count < STANDARD_VECTOR_SIZE && buffer_offset < buffer_size; scan_count++) {
     msgpack::object_handle unpacked;
-    unpack(unpacked, buffer_ptr, buffer_size, buffer_offset);
-    // incomplete msgpack object
-    if (unpacked.get() == nullptr) {
+    try {
+      unpack(unpacked, buffer_ptr, buffer_size, buffer_offset);
+    } catch (const msgpack::unpack_error& e) {
+      // incomplete msgpack object
       if (!is_last) {
         idx_t remaining = buffer_size - buffer_offset;
         // carry over remainder
@@ -255,6 +256,14 @@ void MsgpackScanLocalState::ParseNextChunk() {
         prev_buffer_remainder = remaining;
       }
       break;
+    }
+    std::cout << "type: " << unpacked.get().type
+              << ", count: " << scan_count
+              << ", buffer_offset: " << buffer_offset
+              << ", buffer_size: " << buffer_size
+              << std::endl;
+    if (unpacked.get().type != msgpack::type::MAP) {
+      throw InvalidInputException("only map can be scanned");
     }
     values[scan_count] = &unpacked;
   }
