@@ -55,7 +55,7 @@ static void ReadMsgpackFunction(ClientContext &context,
       data_p.local_state->Cast<MsgpackLocalTableFunctionState>().state;
 
   const auto count = lstate.ReadNext(gstate);
-  msgpack::object_handle **values = lstate.values;
+  std::unique_ptr<msgpack::object_handle> *values = lstate.values;
   output.SetCardinality(count);
 
   if (!gstate.names.empty()) {
@@ -65,12 +65,15 @@ static void ReadMsgpackFunction(ClientContext &context,
       result_vectors.emplace_back(&output.data[col_idx]);
     }
 
-    for (idx_t i = 0; i < count; i++) {
-      std::cout << values[i]->get().type << std::endl;
-    }
     for (idx_t col_idx = 0; col_idx < gstate.names.size(); col_idx++) {
+      std::cout << "col_idx: " << col_idx
+                << ", column name: " << gstate.names[col_idx]
+                << std::endl;
       auto data = FlatVector::GetData<int32_t>(*result_vectors[col_idx]);
-      data[0] = 1;
+      for (idx_t i = 0; i < count; i++) {
+        std::map<std::string, msgpack::object> row = values[i]->get().convert();
+        data[i] = row[gstate.names[col_idx]].as<int32_t>();
+      }
     }
   }
 }

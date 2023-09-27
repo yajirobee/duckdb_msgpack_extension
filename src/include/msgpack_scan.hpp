@@ -73,7 +73,7 @@ public:
 public:
   //! Current scan data
   idx_t scan_count;
-  msgpack::object_handle *values[STANDARD_VECTOR_SIZE];
+  std::unique_ptr<msgpack::object_handle> values[STANDARD_VECTOR_SIZE];
 
   //! Batch index for order-preserving parallelism
   idx_t batch_index;
