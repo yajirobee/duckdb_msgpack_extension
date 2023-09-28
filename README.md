@@ -6,7 +6,7 @@ The MessagePack extension allows DuckDB to directly read data from files storing
 This is just a toy project. Do not use for production systems.
 
 ## Dependency
-- [DuckDB](https://github.com/duckdb/duckdb) version 0.8.1 or above
+- [DuckDB](https://github.com/duckdb/duckdb) version 0.9.0
 - [msgpack for C++](https://github.com/msgpack/msgpack-c/tree/cpp_master) version 6.0.0 or above
 
 ## Build
@@ -16,12 +16,20 @@ make (release/debug)
 ```
 
 ## Run
+`duckdb_msgpack_extension` is already linked into the built `duckdb` binary.
+You can use the extension without load.
+
+```sh
+./build/release/duckdb
+```
+
+### Use loadable extension
 Run DuckDB CLI:
 ```sh
- ./build/release/duckdb -unsigned  # allow unsigned extensions
+duckdb -unsigned  # allow unsigned extensions
 ```
 
 Then, load the extension:
 ```sql
-LOAD 'build/release/extension/duckdb_msgpack_extension/src/msgpack_ext.duckdb_extension';
+LOAD 'build/release/extension/duckdb_msgpack_extension/duckdb_msgpack_ext.duckdb_extension';
 ```
