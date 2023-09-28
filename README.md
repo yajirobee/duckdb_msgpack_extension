@@ -2,10 +2,12 @@
 
 The MessagePack extension allows DuckDB to directly read data from files storing [MessagePack](https://msgpack.org/) map values.
 
-Please note this is just a toy project.
+## Disclaimer
+This is just a toy project. Do not use for production systems.
 
 ## Dependency
--[msgpack for C++](https://github.com/msgpack/msgpack-c/tree/cpp_master) version 6.0.0 or above
+- [DuckDB](https://github.com/duckdb/duckdb) version 0.8.1 or above
+- [msgpack for C++](https://github.com/msgpack/msgpack-c/tree/cpp_master) version 6.0.0 or above
 
 ## Build
 ```sh
