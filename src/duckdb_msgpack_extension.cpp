@@ -71,10 +71,8 @@ static void ReadMsgpackFunction(ClientContext &context,
         auto result = *result_vectors[col_idx];
         std::cout << "col_idx: " << col_idx
                   << ", column name: " << gstate.names[col_idx]
-                  << ", result_type: " << result.GetType().ToString()
                   << std::endl;
-        auto data = FlatVector::GetData<int32_t>(result);
-        data[i] = row[gstate.names[col_idx]].as<int32_t>();
+        Transform(row[gstate.names[col_idx]], result, i);
       }
     }
   }
@@ -112,3 +110,7 @@ DUCKDB_EXTENSION_API const char *msgpack_ext_version() {
   return duckdb::DuckDB::LibraryVersion();
 }
 }
+
+#ifndef DUCKDB_EXTENSION_MAIN
+#error DUCKDB_EXTENSION_MAIN not defined
+#endif

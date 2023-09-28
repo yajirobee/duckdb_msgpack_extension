@@ -16,7 +16,8 @@ include_directories(src/include)
 set(EXTENSION_SOURCES
     src/duckdb_msgpack_extension.cpp
     src/msgpack_scan.cpp
-    src/buffered_msgpack_reader.cpp)
+    src/buffered_msgpack_reader.cpp
+    src/msgpack_transform.cpp)
 
 build_static_extension(${TARGET_NAME} ${EXTENSION_SOURCES})
 set(PARAMETERS "-warnings")

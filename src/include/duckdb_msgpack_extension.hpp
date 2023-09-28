@@ -1,6 +1,7 @@
 #pragma once
 
 #include "msgpack_scan.hpp"
+#include "msgpack_transform.hpp"
 #include "duckdb.hpp"
 
 namespace duckdb {
