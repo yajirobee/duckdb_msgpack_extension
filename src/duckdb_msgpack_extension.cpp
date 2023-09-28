@@ -2,7 +2,7 @@
 
 #include <msgpack.hpp>
 
-#include "msgpack_extension.hpp"
+#include "duckdb_msgpack_extension.hpp"
 
 #include "duckdb/common/multi_file_reader.hpp"
 #include "duckdb/main/extension_util.hpp"
@@ -71,7 +71,7 @@ static void ReadMsgpackFunction(ClientContext &context,
         auto result = *result_vectors[col_idx];
         std::cout << "col_idx: " << col_idx
                   << ", column name: " << gstate.names[col_idx]
-                  << ", result_type: " << result.GetType()
+                  << ", result_type: " << result.GetType().ToString()
                   << std::endl;
         auto data = FlatVector::GetData<int32_t>(result);
         data[i] = row[gstate.names[col_idx]].as<int32_t>();
@@ -80,7 +80,7 @@ static void ReadMsgpackFunction(ClientContext &context,
   }
 }
 
-void MsgpackExtension::Load(DuckDB &db) {
+void DuckdbMsgpackExtension::Load(DuckDB &db) {
   auto &db_instance = *db.instance;
 
   TableFunction table_function({LogicalType::VARCHAR}, ReadMsgpackFunction,
@@ -99,13 +99,13 @@ void MsgpackExtension::Load(DuckDB &db) {
   ExtensionUtil::RegisterFunction(db_instance, function);
 }
 
-std::string MsgpackExtension::Name() { return "msgpack"; }
+std::string DuckdbMsgpackExtension::Name() { return "duckdb_msgpack"; }
 } // namespace duckdb
 
 extern "C" {
 DUCKDB_EXTENSION_API void msgpack_ext_init(duckdb::DatabaseInstance &db) {
   duckdb::DuckDB db_wrapper(db);
-  db_wrapper.LoadExtension<duckdb::MsgpackExtension>();
+  db_wrapper.LoadExtension<duckdb::DuckdbMsgpackExtension>();
 }
 
 DUCKDB_EXTENSION_API const char *msgpack_ext_version() {

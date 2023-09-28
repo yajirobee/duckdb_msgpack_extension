@@ -10,7 +10,7 @@ void MsgpackScanData::Bind(ClientContext &context,
                            TableFunctionBindInput &input) {
   for (auto &kv : input.named_parameters) {
     if (MultiFileReader::ParseOption(kv.first, kv.second,
-                                     options.file_options)) {
+                                     options.file_options, context)) {
       continue;
     }
     auto loption = StringUtil::Lower(kv.first);
