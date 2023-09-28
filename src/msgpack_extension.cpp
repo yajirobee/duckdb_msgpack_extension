@@ -2,7 +2,7 @@
 
 #include <msgpack.hpp>
 
-#include "msgpack-extension.hpp"
+#include "msgpack_extension.hpp"
 
 #include "duckdb/common/multi_file_reader.hpp"
 #include "duckdb/main/extension_util.hpp"
@@ -65,13 +65,15 @@ static void ReadMsgpackFunction(ClientContext &context,
       result_vectors.emplace_back(&output.data[col_idx]);
     }
 
-    for (idx_t col_idx = 0; col_idx < gstate.names.size(); col_idx++) {
-      std::cout << "col_idx: " << col_idx
-                << ", column name: " << gstate.names[col_idx]
-                << std::endl;
-      auto data = FlatVector::GetData<int32_t>(*result_vectors[col_idx]);
-      for (idx_t i = 0; i < count; i++) {
-        std::map<std::string, msgpack::object> row = values[i]->get().convert();
+    for (idx_t i = 0; i < count; i++) {
+      std::map<std::string, msgpack::object> row = values[i]->get().convert();
+      for (idx_t col_idx = 0; col_idx < gstate.names.size(); col_idx++) {
+        auto result = *result_vectors[col_idx];
+        std::cout << "col_idx: " << col_idx
+                  << ", column name: " << gstate.names[col_idx]
+                  << ", result_type: " << result.GetType()
+                  << std::endl;
+        auto data = FlatVector::GetData<int32_t>(result);
         data[i] = row[gstate.names[col_idx]].as<int32_t>();
       }
     }

@@ -3,7 +3,7 @@ cmake_minimum_required(VERSION 3.10)
 find_package(msgpack-cxx REQUIRED)
 include_directories(include)
 set(MSGPACK_EXTENSION_FILES
-  msgpack-extension.cpp
+  msgpack_extension.cpp
   msgpack_scan.cpp
   buffered_msgpack_reader.cpp)
 
