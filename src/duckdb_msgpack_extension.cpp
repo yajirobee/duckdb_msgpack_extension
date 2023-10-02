@@ -47,6 +47,10 @@ unique_ptr<FunctionData> ReadMsgpackBind(ClientContext &context,
   return std::move(bind_data);
 }
 
+template <class T> static T *AllocateArray(Allocator &allocator, idx_t count) {
+  return reinterpret_cast<T *>(allocator.AllocateData(sizeof(T) * count));
+}
+
 static void ReadMsgpackFunction(ClientContext &context,
                                 TableFunctionInput &data_p, DataChunk &output) {
   auto &gstate =
@@ -54,26 +58,40 @@ static void ReadMsgpackFunction(ClientContext &context,
   auto &lstate =
       data_p.local_state->Cast<MsgpackLocalTableFunctionState>().state;
 
-  const auto count = lstate.ReadNext(gstate);
+  const auto row_count = lstate.ReadNext(gstate);
   std::unique_ptr<msgpack::object_handle> *values = lstate.values;
-  output.SetCardinality(count);
+  output.SetCardinality(row_count);
 
   if (!gstate.names.empty()) {
+    const auto column_count = gstate.column_indices.size();
     vector<Vector *> result_vectors;
-    result_vectors.reserve(gstate.column_indices.size());
+    result_vectors.reserve(column_count);
     for (const auto &col_idx : gstate.column_indices) {
       result_vectors.emplace_back(&output.data[col_idx]);
     }
 
-    for (idx_t i = 0; i < count; i++) {
-      std::map<std::string, msgpack::object> row = values[i]->get().convert();
-      for (idx_t col_idx = 0; col_idx < gstate.names.size(); col_idx++) {
-        auto result = *result_vectors[col_idx];
-        std::cout << "col_idx: " << col_idx
-                  << ", column name: " << gstate.names[col_idx]
-                  << std::endl;
-        Transform(row[gstate.names[col_idx]], result, i);
+    // convert rows to columns
+    vector<msgpack::object **> values_by_column;
+    values_by_column.reserve(column_count);
+    for (idx_t col_idx = 0; col_idx < column_count; col_idx++) {
+      values_by_column.push_back(
+          AllocateArray<msgpack::object *>(gstate.allocator, row_count));
+    }
+
+    for (idx_t row_idx = 0; row_idx < row_count; row_idx++) {
+      std::map<std::string, msgpack::object> row =
+          values[row_idx]->get().convert();
+      for (idx_t col_idx = 0; col_idx < column_count; col_idx++) {
+        *values_by_column[col_idx][row_idx] = row[gstate.names[col_idx]];
       }
+    }
+
+    // transform msgpack values
+    for (idx_t col_idx = 0; col_idx < column_count; col_idx++) {
+      auto result = *result_vectors[col_idx];
+      std::cout << "col_idx: " << col_idx
+                << ", column name: " << gstate.names[col_idx] << std::endl;
+      Transform(values_by_column[col_idx], result, row_count);
     }
   }
 }

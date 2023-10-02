@@ -4,7 +4,6 @@
 
 #include "duckdb/function/scalar/strftime_format.hpp"
 
-
 namespace duckdb {
-  bool Transform(msgpack::object &value, Vector &result, const idx_t row_idx);
+bool Transform(msgpack::object *values[], Vector &result, const idx_t count);
 }
