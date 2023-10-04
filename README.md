@@ -12,6 +12,8 @@ This is just a toy project. Do not use for production systems.
 ## Build
 ```sh
 export CMAKE_BUILD_PARALLEL_LEVEL=6 # parallelize build
+# if you use vcpkg
+export VCPKG_TOOLCHAIN_PATH="/path/to/your/vcpkg/installation"
 make (release/debug)
 ```
 
