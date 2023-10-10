@@ -4,13 +4,14 @@
 #include "duckdb/common/multi_file_reader.hpp"
 #include "duckdb/parallel/task_scheduler.hpp"
 #include "duckdb/storage/buffer_manager.hpp"
+#include "include/msgpack_scan.hpp"
 
 namespace duckdb {
 void MsgpackScanData::Bind(ClientContext &context,
                            TableFunctionBindInput &input) {
   for (auto &kv : input.named_parameters) {
-    if (MultiFileReader::ParseOption(kv.first, kv.second,
-                                     options.file_options, context)) {
+    if (MultiFileReader::ParseOption(kv.first, kv.second, options.file_options,
+                                     context)) {
       continue;
     }
     auto loption = StringUtil::Lower(kv.first);
@@ -50,14 +51,16 @@ MsgpackScanLocalState::MsgpackScanLocalState(ClientContext &context,
                                              MsgpackScanGlobalState &gstate)
     : scan_count(0), batch_index(DConstants::INVALID_INDEX), total_read_size(0),
       total_tuple_count(0), bind_data(gstate.bind_data),
-      current_reader(nullptr), current_buffer_handle(nullptr), is_last(false),
-      buffer_size(0), buffer_offset(0), prev_buffer_remainder(0) {
+      allocator(BufferAllocator::Get(context)), current_reader(nullptr),
+      current_buffer_handle(nullptr), is_last(false), buffer_size(0),
+      buffer_offset(0), prev_buffer_remainder(0) {
 
   // Buffer to reconstruct Msgpack values when they cross a buffer boundary
   reconstruct_buffer = gstate.allocator.Allocate(gstate.buffer_capacity);
 }
 
 idx_t MsgpackScanLocalState::ReadNext(MsgpackScanGlobalState &gstate) {
+  allocator.Reset();
   scan_count = 0;
   if (buffer_offset == buffer_size) {
     if (!ReadNextBuffer(gstate)) {
@@ -147,7 +150,9 @@ bool MsgpackScanLocalState::ReadNextBuffer(MsgpackScanGlobalState &gstate) {
 
     // High amount of files, just do 1 thread per file
     ReadNextBufferInternal(gstate, buffer_index);
-    if (buffer_size == 0) { continue; }
+    if (buffer_size == 0) {
+      continue;
+    }
 
     break;
   }
@@ -243,11 +248,11 @@ void MsgpackScanLocalState::ReadNextBufferNoSeek(MsgpackScanGlobalState &gstate,
 void MsgpackScanLocalState::ParseNextChunk() {
   auto buffer_offset_before = buffer_offset;
 
-  for (; scan_count < STANDARD_VECTOR_SIZE && buffer_offset < buffer_size; scan_count++) {
-    auto unpacked = make_uniq<msgpack::object_handle>();
+  for (; scan_count < STANDARD_VECTOR_SIZE && buffer_offset < buffer_size;
+       scan_count++) {
     try {
-      unpack(*unpacked, buffer_ptr, buffer_size, buffer_offset);
-    } catch (const msgpack::unpack_error& e) {
+      values[scan_count] = ParseMsgpack();
+    } catch (const msgpack::insufficient_bytes &e) {
       // incomplete msgpack object
       if (!is_last) {
         idx_t remaining = buffer_size - buffer_offset;
@@ -257,19 +262,22 @@ void MsgpackScanLocalState::ParseNextChunk() {
       }
       break;
     }
-    std::cout << "type: " << unpacked->get().type
-              << ", count: " << scan_count
-              << ", buffer_offset: " << buffer_offset
-              << ", buffer_size: " << buffer_size
-              << std::endl;
-    if (unpacked->get().type != msgpack::type::MAP) {
-      throw InvalidInputException("only map can be scanned");
-    }
-    values[scan_count] = std::move(unpacked);
   }
 
   total_read_size += buffer_offset - buffer_offset_before;
   total_tuple_count += scan_count;
+}
+
+msgpack::object_handle MsgpackScanLocalState::ParseMsgpack() {
+  msgpack::object_handle unpacked =
+      msgpack::unpack(buffer_ptr, buffer_size, buffer_offset);
+  std::cout << "type: " << unpacked.get().type << ", count: " << scan_count
+            << ", buffer_offset: " << buffer_offset
+            << ", buffer_size: " << buffer_size << std::endl;
+  if (unpacked.get().type != msgpack::type::MAP) {
+    throw InvalidInputException("only map can be scanned");
+  }
+  return unpacked;
 }
 
 void MsgpackScanLocalState::ThrowInvalidAtEndError() {

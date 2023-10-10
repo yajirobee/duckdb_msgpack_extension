@@ -73,7 +73,7 @@ public:
 public:
   //! Current scan data
   idx_t scan_count;
-  std::unique_ptr<msgpack::object_handle> values[STANDARD_VECTOR_SIZE];
+  msgpack::object_handle values[STANDARD_VECTOR_SIZE];
 
   //! Batch index for order-preserving parallelism
   idx_t batch_index;
@@ -93,9 +93,8 @@ private:
   void SkipOverArrayStart();
 
   void ParseNextChunk();
+  msgpack::object_handle ParseMsgpack();
 
-  void ParseMsgpack(char *const msgpack_start, const idx_t msgpack_size,
-                    const idx_t remaining);
   void ThrowInvalidAtEndError();
 
   bool IsParallel(MsgpackScanGlobalState &gstate) const;
@@ -103,6 +102,8 @@ private:
 private:
   //! Bind data
   const MsgpackScanData &bind_data;
+  //! Thread-local allocator
+  ArenaAllocator allocator;
 
   //! Current reader and buffer handle
   optional_ptr<BufferedMsgpackReader> current_reader;

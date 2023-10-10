@@ -59,10 +59,9 @@ static void ReadMsgpackFunction(ClientContext &context,
       data_p.local_state->Cast<MsgpackLocalTableFunctionState>().state;
 
   const auto row_count = lstate.ReadNext(gstate);
-  std::unique_ptr<msgpack::object_handle> *values = lstate.values;
   output.SetCardinality(row_count);
 
-  if (!gstate.names.empty()) {
+  if (!gstate.names.empty() && row_count > 0) {
     const auto column_count = gstate.column_indices.size();
     vector<Vector *> result_vectors;
     result_vectors.reserve(column_count);
@@ -71,18 +70,50 @@ static void ReadMsgpackFunction(ClientContext &context,
     }
 
     // convert rows to columns
+    unordered_map<std::string, idx_t> key_map;
     vector<msgpack::object **> values_by_column;
     values_by_column.reserve(column_count);
     for (idx_t col_idx = 0; col_idx < column_count; col_idx++) {
+      key_map.insert({gstate.names[col_idx], col_idx});
       values_by_column.push_back(
           AllocateArray<msgpack::object *>(gstate.allocator, row_count));
     }
 
+    idx_t found_key_count;
+    auto found_keys = AllocateArray<bool>(gstate.allocator, column_count);
+
     for (idx_t row_idx = 0; row_idx < row_count; row_idx++) {
-      std::map<std::string, msgpack::object> row =
-          values[row_idx]->get().convert();
-      for (idx_t col_idx = 0; col_idx < column_count; col_idx++) {
-        *values_by_column[col_idx][row_idx] = row[gstate.names[col_idx]];
+      const auto obj = lstate.values[row_idx].get();
+      if (obj.type != msgpack::type::MAP) {
+        throw msgpack::type_error();
+      }
+
+      found_key_count = 0;
+      memset(found_keys, false, column_count);
+
+      msgpack::object_kv *p(obj.via.map.ptr);
+      msgpack::object_kv *const pend(obj.via.map.ptr + obj.via.map.size);
+      for (; p != pend; ++p) {
+        std::string key;
+        p->key.convert(key);
+        auto it = key_map.find(key);
+        if (it != key_map.end()) {
+          const auto &col_idx = it->second;
+          // TODO: handle duplicate key
+          values_by_column[col_idx][row_idx] = &p->val;
+          found_keys[col_idx] = true;
+          found_key_count++;
+        }
+        // TODO: handle unknown keys
+      }
+
+      if (found_key_count != column_count) {
+        for (idx_t col_idx = 0; col_idx < column_count; col_idx++) {
+          if (!found_keys[col_idx]) {
+            throw InvalidInputException("Object doesn't have key \"" +
+                                        gstate.names[col_idx] + "\"");
+          }
+        }
       }
     }
 
