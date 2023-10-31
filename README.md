@@ -35,3 +35,9 @@ Then, load the extension:
 ```sql
 LOAD 'build/release/extension/duckdb_msgpack_extension/duckdb_msgpack_ext.duckdb_extension';
 ```
+
+### read msgpack files
+msgpack files can be read by `read_msgpack` function. It supports only scan of map values.
+```sql
+select * from read_msgpack('data/nation.msgpack', columns={n_nationkey: 'INTEGER', n_name: 'VARCHAR', n_regionkey: 'SMALLINT', n_comment: 'VARCHAR'});
+```
