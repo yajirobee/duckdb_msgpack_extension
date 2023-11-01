@@ -5,6 +5,12 @@ all: release
 MKFILE_PATH := $(abspath $(lastword $(MAKEFILE_LIST)))
 PROJ_DIR := $(dir $(MKFILE_PATH))
 
+ifeq ($(OS),Windows_NT)
+	TEST_PATH="/test/Release/unittest.exe"
+else
+	TEST_PATH="/test/unittest"
+endif
+
 #### VCPKG config
 VCPKG_TOOLCHAIN_PATH?=
 ifneq ("${VCPKG_TOOLCHAIN_PATH}", "")
@@ -42,6 +48,13 @@ release:
 	mkdir -p build/release && \
 	cmake $(GENERATOR) $(BUILD_FLAGS)  $(CLIENT_FLAGS) -DCMAKE_BUILD_TYPE=Release -S ./duckdb/ -B build/release && \
 	cmake --build build/release --config Release
+
+# Main tests
+test: test_release
+test_release: release
+	./build/release/$(TEST_PATH) "$(PROJ_DIR)test/*"
+test_debug: debug
+	./build/debug/$(TEST_PATH) "$(PROJ_DIR)test/*"
 
 #### Misc
 format:

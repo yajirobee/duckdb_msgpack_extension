@@ -271,9 +271,6 @@ void MsgpackScanLocalState::ParseNextChunk() {
 msgpack::object_handle MsgpackScanLocalState::ParseMsgpack() {
   msgpack::object_handle unpacked =
       msgpack::unpack(buffer_ptr, buffer_size, buffer_offset);
-  std::cout << "type: " << unpacked.get().type << ", count: " << scan_count
-            << ", buffer_offset: " << buffer_offset
-            << ", buffer_size: " << buffer_size << std::endl;
   if (unpacked.get().type != msgpack::type::MAP) {
     throw InvalidInputException("only map can be scanned");
   }

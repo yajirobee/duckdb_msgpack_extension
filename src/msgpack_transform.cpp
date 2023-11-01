@@ -55,7 +55,6 @@ static bool TransformFromString(msgpack::object *values[], Vector &result,
 
 bool Transform(msgpack::object *values[], Vector &result, const idx_t count) {
   auto result_type = result.GetType();
-  std::cout << "result_type: " << result_type.ToString() << std::endl;
 
   // TODO: use cast_operators of DuckDB
   switch (result_type.id()) {

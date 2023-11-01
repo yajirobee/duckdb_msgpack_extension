@@ -120,8 +120,6 @@ static void ReadMsgpackFunction(ClientContext &context,
     // transform msgpack values
     for (idx_t col_idx = 0; col_idx < column_count; col_idx++) {
       auto result = *result_vectors[col_idx];
-      std::cout << "col_idx: " << col_idx
-                << ", column name: " << gstate.names[col_idx] << std::endl;
       Transform(values_by_column[col_idx], result, row_count);
     }
   }
