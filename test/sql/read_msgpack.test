@@ -1,0 +1,37 @@
+# name: test/sql/read_msgpack.test
+# description: Read msgpack files straight to columnar data
+# group: [table]
+
+require duckdb_msgpack
+
+statement ok
+pragma enable_verification
+
+query II
+select * from read_msgpack('data/nation.msgpack', columns={n_nationkey: 'INTEGER', n_name: 'VARCHAR'});
+----
+0	ALGERIA
+1	ARGENTINA
+2	BRAZIL
+3	CANADA
+4	EGYPT
+5	ETHIOPIA
+6	FRANCE
+7	GERMANY
+8	INDIA
+9	INDONESIA
+10	IRAN
+11	IRAQ
+12	JAPAN
+13	JORDAN
+14	KENYA
+15	MOROCCO
+16	MOZAMBIQUE
+17	PERU
+18	CHINA
+19	ROMANIA
+20	SAUDI ARABIA
+21	VIETNAM
+22	RUSSIA
+23	UNITED KINGDOM
+24	UNITED STATES
