@@ -11,57 +11,6 @@
 #include "duckdb/main/extension_util.hpp"
 
 namespace duckdb {
-struct MsgpackScanData : public TableFunctionData {
-public:
-  //! File-specific options
-  BufferedMsgpackReaderOptions options;
-
-  //! The files we're reading
-  vector<string> files;
-  //! Initial file reader
-  unique_ptr<BufferedMsgpackReader> initial_reader;
-  //! The readers
-  vector<unique_ptr<BufferedMsgpackReader>> union_readers;
-
-  //! Maximum messagepack oject size (defaults to 16MB minimum)
-  idx_t maximum_object_size = 16777216;
-
-  //! All column names (in order)
-  vector<string> names;
-
-public:
-  void Bind(ClientContext &context, TableFunctionBindInput &input) {
-    for (auto &kv : input.named_parameters) {
-      if (MultiFileReader::ParseOption(kv.first, kv.second,
-                                       options.file_options, context)) {
-        continue;
-      }
-      auto loption = StringUtil::Lower(kv.first);
-      if (loption == "compression") {
-        SetCompression(StringUtil::Lower(StringValue::Get(kv.second)));
-      }
-    }
-
-    files = MultiFileReader::GetFileList(context, input.inputs[0], "Msgpack");
-
-    union_readers.resize(files.empty() ? 0 : files.size() - 1);
-    for (idx_t file_idx = 0; file_idx < files.size(); file_idx++) {
-      if (file_idx == 0) {
-        initial_reader =
-            make_uniq<BufferedMsgpackReader>(context, options, files[0]);
-      } else {
-        union_readers[file_idx - 1] =
-            make_uniq<BufferedMsgpackReader>(context, options, files[file_idx]);
-      }
-    }
-  }
-
-  void SetCompression(const string &compression) {
-    options.compression = EnumUtil::FromString<FileCompressionType>(
-        StringUtil::Upper(compression));
-  }
-};
-
 struct MsgpackGlobalTableFunctionState : public GlobalTableFunctionState {
 public:
   MsgpackGlobalTableFunctionState(ClientContext &context,

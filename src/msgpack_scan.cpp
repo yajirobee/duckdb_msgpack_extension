@@ -1,19 +1,8 @@
 #include "msgpack_scan.hpp"
 
-#include "duckdb/common/enum_util.hpp"
-#include "duckdb/common/multi_file_reader.hpp"
 #include "duckdb/parallel/task_scheduler.hpp"
-#include "duckdb/storage/buffer_manager.hpp"
 
 namespace duckdb {
-MsgpackScanGlobalState::MsgpackScanGlobalState(
-    ClientContext &context, const MsgpackScanData &bind_data_p)
-    : bind_data(bind_data_p),
-      allocator(BufferManager::GetBufferManager(context).GetBufferAllocator()),
-      buffer_capacity(bind_data.maximum_object_size * 2), file_index(0),
-      batch_index(0),
-      system_threads(TaskScheduler::GetScheduler(context).NumberOfThreads()) {}
-
 MsgpackScanLocalState::MsgpackScanLocalState(ClientContext &context,
                                              MsgpackScanGlobalState &gstate)
     : scan_count(0), batch_index(DConstants::INVALID_INDEX), total_read_size(0),
