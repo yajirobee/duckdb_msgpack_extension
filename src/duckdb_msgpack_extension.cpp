@@ -3,15 +3,35 @@
 #include <msgpack.hpp>
 
 #include "duckdb_msgpack_extension.hpp"
+#include "msgpack_scan.hpp"
+#include "msgpack_transform.hpp"
 
 #include "duckdb/common/multi_file_reader.hpp"
+#include "duckdb/function/table_function.hpp"
 #include "duckdb/main/extension_util.hpp"
 
 namespace duckdb {
-unique_ptr<FunctionData> ReadMsgpackBind(ClientContext &context,
-                                         TableFunctionBindInput &input,
-                                         vector<LogicalType> &return_types,
-                                         vector<string> &names) {
+struct MsgpackGlobalTableFunctionState : public GlobalTableFunctionState {
+public:
+  MsgpackGlobalTableFunctionState(ClientContext &context,
+                                  TableFunctionInitInput &input)
+      : state(context, input.bind_data->Cast<MsgpackScanData>()) {}
+
+  MsgpackScanGlobalState state;
+};
+
+struct MsgpackLocalTableFunctionState : public LocalTableFunctionState {
+public:
+  MsgpackLocalTableFunctionState(ClientContext &context,
+                                 MsgpackScanGlobalState &gstate)
+      : state(context, gstate) {}
+
+  MsgpackScanLocalState state;
+};
+
+static unique_ptr<FunctionData>
+ReadMsgpackBind(ClientContext &context, TableFunctionBindInput &input,
+                vector<LogicalType> &return_types, vector<string> &names) {
   auto bind_data = make_uniq<MsgpackScanData>();
   bind_data->Bind(context, input);
 
@@ -45,6 +65,43 @@ unique_ptr<FunctionData> ReadMsgpackBind(ClientContext &context,
     }
   }
   return std::move(bind_data);
+}
+
+static unique_ptr<GlobalTableFunctionState>
+ReadMsgpackInitGlobal(ClientContext &context, TableFunctionInitInput &input) {
+  auto &bind_data = input.bind_data->Cast<MsgpackScanData>();
+  auto result = make_uniq<MsgpackGlobalTableFunctionState>(context, input);
+  auto &gstate = result->state;
+
+  // Perform projection pushdown
+  for (idx_t col_idx = 0; col_idx < input.column_ids.size(); col_idx++) {
+    const auto &col_id = input.column_ids[col_idx];
+
+    gstate.column_indices.push_back(col_idx);
+    gstate.names.push_back(bind_data.names[col_id]);
+  }
+
+  // Place readers where they belong
+  if (bind_data.initial_reader) {
+    bind_data.initial_reader->Reset();
+    gstate.msgpack_readers.emplace_back(bind_data.initial_reader.get());
+  }
+  for (const auto &reader : bind_data.union_readers) {
+    reader->Reset();
+    gstate.msgpack_readers.emplace_back(reader.get());
+  }
+
+  return std::move(result);
+}
+
+static unique_ptr<LocalTableFunctionState>
+ReadMsgpackInitLocal(ExecutionContext &context, TableFunctionInitInput &input,
+                     GlobalTableFunctionState *global_state) {
+  auto &gstate = global_state->Cast<MsgpackGlobalTableFunctionState>();
+  auto result =
+      make_uniq<MsgpackLocalTableFunctionState>(context.client, gstate.state);
+
+  return std::move(result);
 }
 
 template <class T> static T *AllocateArray(Allocator &allocator, idx_t count) {
@@ -128,11 +185,9 @@ static void ReadMsgpackFunction(ClientContext &context,
 void DuckdbMsgpackExtension::Load(DuckDB &db) {
   auto &db_instance = *db.instance;
 
-  TableFunction table_function({LogicalType::VARCHAR}, ReadMsgpackFunction,
-                               ReadMsgpackBind,
-                               MsgpackGlobalTableFunctionState::Init,
-                               MsgpackLocalTableFunctionState::Init);
-  table_function.name = "read_msgpack";
+  TableFunction table_function("read_msgpack", {LogicalType::VARCHAR},
+                               ReadMsgpackFunction, ReadMsgpackBind,
+                               ReadMsgpackInitGlobal, ReadMsgpackInitLocal);
 
   table_function.named_parameters["compression"] = LogicalType::VARCHAR;
 

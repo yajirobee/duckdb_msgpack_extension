@@ -3,16 +3,14 @@
 #include <msgpack.hpp>
 
 #include "buffered_msgpack_reader.hpp"
+
+#include "duckdb/common/enum_util.hpp"
 #include "duckdb/common/multi_file_reader.hpp"
 #include "duckdb/function/table_function.hpp"
+#include "duckdb/storage/buffer_manager.hpp"
 
 namespace duckdb {
 struct MsgpackScanData : public TableFunctionData {
-public:
-  void Bind(ClientContext &context, TableFunctionBindInput &input);
-
-  void SetCompression(const string &compression);
-
 public:
   //! File-specific options
   BufferedMsgpackReaderOptions options;
@@ -29,6 +27,38 @@ public:
 
   //! All column names (in order)
   vector<string> names;
+
+public:
+  void Bind(ClientContext &context, TableFunctionBindInput &input) {
+    for (auto &kv : input.named_parameters) {
+      if (MultiFileReader::ParseOption(kv.first, kv.second,
+                                       options.file_options, context)) {
+        continue;
+      }
+      auto loption = StringUtil::Lower(kv.first);
+      if (loption == "compression") {
+        SetCompression(StringUtil::Lower(StringValue::Get(kv.second)));
+      }
+    }
+
+    files = MultiFileReader::GetFileList(context, input.inputs[0], "Msgpack");
+
+    union_readers.resize(files.empty() ? 0 : files.size() - 1);
+    for (idx_t file_idx = 0; file_idx < files.size(); file_idx++) {
+      if (file_idx == 0) {
+        initial_reader =
+            make_uniq<BufferedMsgpackReader>(context, options, files[0]);
+      } else {
+        union_readers[file_idx - 1] =
+            make_uniq<BufferedMsgpackReader>(context, options, files[file_idx]);
+      }
+    }
+  }
+
+  void SetCompression(const string &compression) {
+    options.compression = EnumUtil::FromString<FileCompressionType>(
+        StringUtil::Upper(compression));
+  }
 };
 
 struct MsgpackScanInfo : public TableFunctionInfo {};
@@ -36,9 +66,15 @@ struct MsgpackScanInfo : public TableFunctionInfo {};
 struct MsgpackScanGlobalState {
 public:
   MsgpackScanGlobalState(ClientContext &context,
-                         const MsgpackScanData &bind_data);
+                         const MsgpackScanData &bind_data_p)
+      : bind_data(bind_data_p),
+        allocator(
+            BufferManager::GetBufferManager(context).GetBufferAllocator()),
+        buffer_capacity(bind_data.maximum_object_size * 2), file_index(0),
+        batch_index(0),
+        system_threads(TaskScheduler::GetScheduler(context).NumberOfThreads()) {
+  }
 
-public:
   //! Bound data
   const MsgpackScanData &bind_data;
 
@@ -66,11 +102,6 @@ struct MsgpackScanLocalState {
 public:
   MsgpackScanLocalState(ClientContext &context, MsgpackScanGlobalState &gstate);
 
-public:
-  // return read tuple count
-  idx_t ReadNext(MsgpackScanGlobalState &gstate);
-
-public:
   //! Current scan data
   idx_t scan_count;
   msgpack::object_handle values[STANDARD_VECTOR_SIZE];
@@ -81,6 +112,10 @@ public:
   //! For determining average tuple size
   idx_t total_read_size;
   idx_t total_tuple_count;
+
+public:
+  // return read tuple count
+  idx_t ReadNext(MsgpackScanGlobalState &gstate);
 
 private:
   // return true if read something
@@ -114,35 +149,12 @@ private:
 
   //! Current buffer read info
   char *buffer_ptr;
-  idx_t buffer_size;
-  idx_t buffer_offset;
+  size_t buffer_size;
+  size_t buffer_offset;
   idx_t prev_buffer_remainder;
   idx_t objects_in_buffer;
 
   //! Buffer to reconstruct split values
   AllocatedData reconstruct_buffer;
-};
-
-struct MsgpackGlobalTableFunctionState : public GlobalTableFunctionState {
-public:
-  MsgpackGlobalTableFunctionState(ClientContext &context,
-                                  TableFunctionInitInput &input);
-  static unique_ptr<GlobalTableFunctionState>
-  Init(ClientContext &context, TableFunctionInitInput &input);
-
-public:
-  MsgpackScanGlobalState state;
-};
-
-struct MsgpackLocalTableFunctionState : public LocalTableFunctionState {
-public:
-  MsgpackLocalTableFunctionState(ClientContext &context,
-                                 MsgpackScanGlobalState &gstate);
-  static unique_ptr<LocalTableFunctionState>
-  Init(ExecutionContext &context, TableFunctionInitInput &input,
-       GlobalTableFunctionState *global_state);
-
-public:
-  MsgpackScanLocalState state;
 };
 } // namespace duckdb
