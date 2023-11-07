@@ -11,6 +11,12 @@ else
 	TEST_PATH="/test/unittest"
 endif
 
+#### OSX config
+OSX_BUILD_FLAG=
+ifneq (${OSX_BUILD_ARCH}, "")
+	OSX_BUILD_FLAG=-DOSX_BUILD_ARCH=${OSX_BUILD_ARCH}
+endif
+
 #### VCPKG config
 VCPKG_TOOLCHAIN_PATH?=
 ifneq ("${VCPKG_TOOLCHAIN_PATH}", "")
@@ -32,7 +38,7 @@ EXTENSION_FLAGS=\
 #### Add more of the DuckDB in-tree extensions here that you need (also feel free to remove them when not needed)
 EXTRA_EXTENSIONS_FLAG=-DBUILD_EXTENSIONS="tpch;visualizer"
 
-BUILD_FLAGS=-DEXTENSION_STATIC_BUILD=0 $(EXTENSION_FLAGS) ${EXTRA_EXTENSIONS_FLAG} $(TOOLCHAIN_FLAGS)
+BUILD_FLAGS=-DEXTENSION_STATIC_BUILD=0 $(EXTENSION_FLAGS) ${EXTRA_EXTENSIONS_FLAG} $(OSX_BUILD_FLAG) $(TOOLCHAIN_FLAGS)
 CLIENT_FLAGS:=
 
 #### Main build
