@@ -7,30 +7,6 @@
 #include "duckdb/function/table_function.hpp"
 
 namespace duckdb {
-struct MsgpackScanData : public TableFunctionData {
-public:
-  void Bind(ClientContext &context, TableFunctionBindInput &input);
-
-  void SetCompression(const string &compression);
-
-public:
-  //! File-specific options
-  BufferedMsgpackReaderOptions options;
-
-  //! The files we're reading
-  vector<string> files;
-  //! Initial file reader
-  unique_ptr<BufferedMsgpackReader> initial_reader;
-  //! The readers
-  vector<unique_ptr<BufferedMsgpackReader>> union_readers;
-
-  //! Maximum messagepack oject size (defaults to 16MB minimum)
-  idx_t maximum_object_size = 16777216;
-
-  //! All column names (in order)
-  vector<string> names;
-};
-
 struct MsgpackScanInfo : public TableFunctionInfo {};
 
 struct MsgpackScanGlobalState {
@@ -121,28 +97,5 @@ private:
 
   //! Buffer to reconstruct split values
   AllocatedData reconstruct_buffer;
-};
-
-struct MsgpackGlobalTableFunctionState : public GlobalTableFunctionState {
-public:
-  MsgpackGlobalTableFunctionState(ClientContext &context,
-                                  TableFunctionInitInput &input);
-  static unique_ptr<GlobalTableFunctionState>
-  Init(ClientContext &context, TableFunctionInitInput &input);
-
-public:
-  MsgpackScanGlobalState state;
-};
-
-struct MsgpackLocalTableFunctionState : public LocalTableFunctionState {
-public:
-  MsgpackLocalTableFunctionState(ClientContext &context,
-                                 MsgpackScanGlobalState &gstate);
-  static unique_ptr<LocalTableFunctionState>
-  Init(ExecutionContext &context, TableFunctionInitInput &input,
-       GlobalTableFunctionState *global_state);
-
-public:
-  MsgpackScanLocalState state;
 };
 } // namespace duckdb
