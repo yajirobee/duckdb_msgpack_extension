@@ -1,6 +1,8 @@
 cmake_minimum_required(VERSION 3.10)
 
-set(TARGET_NAME duckdb_msgpack)
+# extension name "msgpack" is unavailable as "char* msgpack_version(void)" signiture is
+# already taken by msgpack-cxx library.
+set(TARGET_NAME msgpack_ext)
 set(EXTENSION_NAME ${TARGET_NAME}_extension)
 set(LOADABLE_EXTENSION_NAME ${TARGET_NAME}_loadable_extension)
 
@@ -14,7 +16,7 @@ find_package(msgpack-cxx REQUIRED)
 include_directories(src/include)
 
 set(EXTENSION_SOURCES
-    src/duckdb_msgpack_extension.cpp
+    src/msgpack_extension.cpp
     src/msgpack_scan.cpp
     src/buffered_msgpack_reader.cpp
     src/msgpack_transform.cpp)

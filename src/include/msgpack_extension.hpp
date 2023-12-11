@@ -3,7 +3,7 @@
 #include "duckdb.hpp"
 
 namespace duckdb {
-class DuckdbMsgpackExtension : public Extension {
+class MsgpackExtension : public Extension {
 public:
   void Load(DuckDB &db) override;
   std::string Name() override;

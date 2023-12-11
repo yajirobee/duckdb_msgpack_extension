@@ -14,11 +14,14 @@ This is just a toy project. Do not use for production systems.
 export CMAKE_BUILD_PARALLEL_LEVEL=6 # parallelize build
 # if you use vcpkg
 export VCPKG_TOOLCHAIN_PATH="/path/to/your/vcpkg/installation"
+# if you installed vcpkg on the same directory as this extension:
+# export VCPKG_TOOLCHAIN_PATH=`pwd`/vcpkg/scripts/buildsystems/vcpkg.cmake
+
 make (release/debug)
 ```
 
 ## Run
-`duckdb_msgpack_extension` is already linked into the built `duckdb` binary.
+`msgpack_extension` is already linked into the built `duckdb` binary.
 You can use the extension without load.
 
 ```sh
@@ -33,7 +36,7 @@ duckdb -unsigned  # allow unsigned extensions
 
 Then, load the extension:
 ```sql
-LOAD 'build/release/extension/duckdb_msgpack_extension/duckdb_msgpack_ext.duckdb_extension';
+LOAD 'build/release/extension/duckdb_msgpack_extension/msgpack_ext.duckdb_extension';
 ```
 
 ### read msgpack files
