@@ -36,7 +36,7 @@ duckdb -unsigned  # allow unsigned extensions
 
 Then, load the extension:
 ```sql
-LOAD 'build/release/extension/duckdb_msgpack_extension/msgpack_ext.duckdb_extension';
+LOAD 'build/release/extension/msgpack_maps/msgpack_maps.duckdb_extension';
 ```
 
 ### read msgpack files

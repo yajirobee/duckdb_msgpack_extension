@@ -2,7 +2,7 @@
 
 #include <msgpack.hpp>
 
-#include "msgpack_extension.hpp"
+#include "msgpack_maps_extension.hpp"
 #include "msgpack_scan.hpp"
 #include "msgpack_transform.hpp"
 
@@ -182,7 +182,7 @@ static void ReadMsgpackFunction(ClientContext &context,
   }
 }
 
-void MsgpackExtension::Load(DuckDB &db) {
+void MsgpackMapsExtension::Load(DuckDB &db) {
   auto &db_instance = *db.instance;
 
   TableFunction table_function("read_msgpack", {LogicalType::VARCHAR},
@@ -199,16 +199,16 @@ void MsgpackExtension::Load(DuckDB &db) {
   ExtensionUtil::RegisterFunction(db_instance, function);
 }
 
-std::string MsgpackExtension::Name() { return "msgpack"; }
+std::string MsgpackMapsExtension::Name() { return "msgpack_maps"; }
 } // namespace duckdb
 
 extern "C" {
-DUCKDB_EXTENSION_API void msgpack_ext_init(duckdb::DatabaseInstance &db) {
+DUCKDB_EXTENSION_API void msgpack_maps_init(duckdb::DatabaseInstance &db) {
   duckdb::DuckDB db_wrapper(db);
-  db_wrapper.LoadExtension<duckdb::MsgpackExtension>();
+  db_wrapper.LoadExtension<duckdb::MsgpackMapsExtension>();
 }
 
-DUCKDB_EXTENSION_API const char *msgpack_ext_version() {
+DUCKDB_EXTENSION_API const char *msgpack_maps_version() {
   return duckdb::DuckDB::LibraryVersion();
 }
 }
