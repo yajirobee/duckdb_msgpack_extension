@@ -102,6 +102,9 @@ struct MsgpackScanLocalState {
 public:
   MsgpackScanLocalState(ClientContext &context, MsgpackScanGlobalState &gstate);
 
+  //! Thread-local allocator
+  ArenaAllocator allocator;
+
   //! Current scan data
   idx_t scan_count;
   msgpack::object_handle values[STANDARD_VECTOR_SIZE];
@@ -137,8 +140,6 @@ private:
 private:
   //! Bind data
   const MsgpackScanData &bind_data;
-  //! Thread-local allocator
-  ArenaAllocator allocator;
 
   //! Current reader and buffer handle
   optional_ptr<BufferedMsgpackReader> current_reader;

@@ -104,8 +104,8 @@ ReadMsgpackInitLocal(ExecutionContext &context, TableFunctionInitInput &input,
   return std::move(result);
 }
 
-template <class T> static T *AllocateArray(Allocator &allocator, idx_t count) {
-  return reinterpret_cast<T *>(allocator.AllocateData(sizeof(T) * count));
+template <class T> static T *AllocateArray(ArenaAllocator &allocator, idx_t count) {
+  return reinterpret_cast<T *>(allocator.Allocate(sizeof(T) * count));
 }
 
 static void ReadMsgpackFunction(ClientContext &context,
@@ -133,11 +133,11 @@ static void ReadMsgpackFunction(ClientContext &context,
     for (idx_t col_idx = 0; col_idx < column_count; col_idx++) {
       key_map.insert({gstate.names[col_idx], col_idx});
       values_by_column.push_back(
-          AllocateArray<msgpack::object *>(gstate.allocator, row_count));
+          AllocateArray<msgpack::object *>(lstate.allocator, row_count));
     }
 
     idx_t found_key_count;
-    auto found_keys = AllocateArray<bool>(gstate.allocator, column_count);
+    auto found_keys = AllocateArray<bool>(lstate.allocator, column_count);
 
     for (idx_t row_idx = 0; row_idx < row_count; row_idx++) {
       const auto obj = lstate.values[row_idx].get();

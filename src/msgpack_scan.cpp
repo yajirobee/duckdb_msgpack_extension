@@ -5,11 +5,11 @@
 namespace duckdb {
 MsgpackScanLocalState::MsgpackScanLocalState(ClientContext &context,
                                              MsgpackScanGlobalState &gstate)
-    : scan_count(0), batch_index(DConstants::INVALID_INDEX), total_read_size(0),
+    : allocator(BufferAllocator::Get(context)), scan_count(0),
+      batch_index(DConstants::INVALID_INDEX), total_read_size(0),
       total_tuple_count(0), bind_data(gstate.bind_data),
-      allocator(BufferAllocator::Get(context)), current_reader(nullptr),
-      current_buffer_handle(nullptr), is_last(false), buffer_size(0),
-      buffer_offset(0), prev_buffer_remainder(0) {
+      current_reader(nullptr), current_buffer_handle(nullptr), is_last(false),
+      buffer_size(0), buffer_offset(0), prev_buffer_remainder(0) {
 
   // Buffer to reconstruct Msgpack values when they cross a buffer boundary
   reconstruct_buffer = gstate.allocator.Allocate(gstate.buffer_capacity);
