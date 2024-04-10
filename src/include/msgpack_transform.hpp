@@ -2,8 +2,8 @@
 
 #include <msgpack.hpp>
 
-#include "duckdb/function/scalar/strftime_format.hpp"
+#include "duckdb/common/types/vector.hpp"
 
 namespace duckdb {
-bool Transform(msgpack::object *values[], Vector &result, const idx_t count);
+bool MsgpackTransform(msgpack::object *values[], Vector &result, const idx_t count);
 }
