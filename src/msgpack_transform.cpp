@@ -1,8 +1,9 @@
 #include "msgpack_transform.hpp"
 
-#include <iostream>
-
+#include "duckdb/common/operator/cast_operators.hpp"
+#include "duckdb/common/operator/string_cast.hpp"
 #include "duckdb/common/types.hpp"
+#include "duckdb/common/vector_operations/vector_operations.hpp"
 
 namespace msgpack {
 MSGPACK_API_VERSION_NAMESPACE(MSGPACK_DEFAULT_API_NS) {
@@ -30,13 +31,85 @@ MSGPACK_API_VERSION_NAMESPACE(MSGPACK_DEFAULT_API_NS) {
 
 namespace duckdb {
 template <class T>
-static inline bool TransformVals(msgpack::object *values[], Vector &result,
-                                 const idx_t count) {
+static inline bool GetValueNumerical(msgpack::object const &obj, T &result) {
+  D_ASSERT(obj.type != msgpack::type::NIL);
+  switch (obj.type) {
+  case msgpack::type::BOOLEAN:
+    return TryCast::Operation<bool, T>(obj.as<bool>(), result, false);
+  case msgpack::type::POSITIVE_INTEGER:
+    return TryCast::Operation<uint64_t, T>(obj.as<uint64_t>(), result, false);
+  case msgpack::type::NEGATIVE_INTEGER:
+    return TryCast::Operation<int64_t, T>(obj.as<int64_t>(), result, false);
+  case msgpack::type::FLOAT32:
+  case msgpack::type::FLOAT64:
+    return TryCast::Operation<double, T>(obj.as<double>(), result, false);
+  case msgpack::type::STR:
+    return TryCast::Operation<string_t, T>(obj.as<string_t>(), result, false);
+  case msgpack::type::BIN:
+  case msgpack::type::ARRAY:
+  case msgpack::type::MAP:
+  case msgpack::type::EXT:
+    // TODO: implement
+  default:
+    throw InternalException("Unknown msgpack type in GetValueNumerical");
+  }
+}
+
+template <class T>
+static inline bool TransformNumerical(msgpack::object *values[], Vector &result,
+                                      const idx_t count) {
   auto data = FlatVector::GetData<T>(result);
-  // TODO: set validity
-  // TODO: handle type error
+  auto &validity = FlatVector::Validity(result);
   for (idx_t row_idx = 0; row_idx < count; row_idx++) {
-    values[row_idx]->convert<T>(data[row_idx]);
+    auto &obj = *values[row_idx];
+    if (obj.type == msgpack::type::NIL ||
+        !GetValueNumerical(obj, data[row_idx])) {
+      validity.SetInvalid(row_idx);
+    }
+  }
+  return true;
+}
+
+static inline bool GetValueString(msgpack::object const &obj, string_t &result,
+                                  Vector &vector) {
+  D_ASSERT(obj.type != msgpack::type::NIL);
+  switch (obj.type) {
+  case msgpack::type::BOOLEAN:
+    result = StringCast::Operation<bool>(obj.as<bool>(), vector);
+    return true;
+  case msgpack::type::POSITIVE_INTEGER:
+    result = StringCast::Operation<uint64_t>(obj.as<uint64_t>(), vector);
+    return true;
+  case msgpack::type::NEGATIVE_INTEGER:
+    result = StringCast::Operation<int64_t>(obj.as<int64_t>(), vector);
+    return true;
+  case msgpack::type::FLOAT32:
+  case msgpack::type::FLOAT64:
+    result = StringCast::Operation<double>(obj.as<double>(), vector);
+    return true;
+  case msgpack::type::STR:
+    obj.convert<string_t>(result);
+    return true;
+  case msgpack::type::BIN:
+  case msgpack::type::ARRAY:
+  case msgpack::type::MAP:
+  case msgpack::type::EXT:
+    // TODO: implement
+  default:
+    throw InternalException("Unknown msgpack type in GetValueString");
+  }
+}
+
+static inline bool TransformToString(msgpack::object *values[], Vector &result,
+                                     const idx_t count) {
+  auto data = FlatVector::GetData<string_t>(result);
+  auto &validity = FlatVector::Validity(result);
+  for (idx_t row_idx = 0; row_idx < count; row_idx++) {
+    auto &obj = *values[row_idx];
+    if (obj.type == msgpack::type::NIL ||
+        !GetValueString(obj, data[row_idx], result)) {
+      validity.SetInvalid(row_idx);
+    }
   }
   return true;
 }
@@ -44,44 +117,41 @@ static inline bool TransformVals(msgpack::object *values[], Vector &result,
 static bool TransformFromString(msgpack::object *values[], Vector &result,
                                 const idx_t count) {
   Vector string_vector(LogicalTypeId::VARCHAR, count);
+  TransformToString(values, string_vector, count);
 
-  auto data = FlatVector::GetData<string_t>(string_vector);
-  for (idx_t row_idx = 0; row_idx < count; row_idx++) {
-    values[row_idx]->convert<string_t>(data[row_idx]);
-  }
-
-  return VectorOperations::DefaultTryCast(string_vector, result, count, nullptr, true);
+  return VectorOperations::DefaultTryCast(string_vector, result, count, nullptr,
+                                          true);
 }
 
-bool Transform(msgpack::object *values[], Vector &result, const idx_t count) {
+bool MsgpackTransform(msgpack::object *values[], Vector &result,
+                      const idx_t count) {
   auto result_type = result.GetType();
-
-  // TODO: use cast_operators of DuckDB
   switch (result_type.id()) {
   case LogicalTypeId::SQLNULL:
+    FlatVector::Validity(result).SetAllInvalid(count);
     return true;
   case LogicalTypeId::BOOLEAN:
-    return TransformVals<bool>(values, result, count);
+    return TransformNumerical<bool>(values, result, count);
   case LogicalTypeId::TINYINT:
-    return TransformVals<int8_t>(values, result, count);
+    return TransformNumerical<int8_t>(values, result, count);
   case LogicalTypeId::SMALLINT:
-    return TransformVals<int16_t>(values, result, count);
+    return TransformNumerical<int16_t>(values, result, count);
   case LogicalTypeId::INTEGER:
-    return TransformVals<int32_t>(values, result, count);
+    return TransformNumerical<int32_t>(values, result, count);
   case LogicalTypeId::BIGINT:
-    return TransformVals<int64_t>(values, result, count);
+    return TransformNumerical<int64_t>(values, result, count);
   case LogicalTypeId::UTINYINT:
-    return TransformVals<uint8_t>(values, result, count);
+    return TransformNumerical<uint8_t>(values, result, count);
   case LogicalTypeId::USMALLINT:
-    return TransformVals<uint16_t>(values, result, count);
+    return TransformNumerical<uint16_t>(values, result, count);
   case LogicalTypeId::UINTEGER:
-    return TransformVals<uint32_t>(values, result, count);
+    return TransformNumerical<uint32_t>(values, result, count);
   case LogicalTypeId::UBIGINT:
-    return TransformVals<uint64_t>(values, result, count);
+    return TransformNumerical<uint64_t>(values, result, count);
   case LogicalTypeId::FLOAT:
-    return TransformVals<float>(values, result, count);
+    return TransformNumerical<float>(values, result, count);
   case LogicalTypeId::DOUBLE:
-    return TransformVals<double>(values, result, count);
+    return TransformNumerical<double>(values, result, count);
   case LogicalTypeId::AGGREGATE_STATE:
   case LogicalTypeId::ENUM:
   case LogicalTypeId::DATE:
@@ -96,9 +166,8 @@ bool Transform(msgpack::object *values[], Vector &result, const idx_t count) {
   case LogicalTypeId::UUID:
     return TransformFromString(values, result, count);
   case LogicalTypeId::CHAR:
-    return TransformVals<string_t>(values, result, count);
   case LogicalTypeId::VARCHAR:
-    return TransformVals<string_t>(values, result, count);
+    return TransformToString(values, result, count);
   default:
     throw NotImplementedException(
         "Cannot read a value of type %s from a msgpack file",

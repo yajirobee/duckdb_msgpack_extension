@@ -177,7 +177,7 @@ static void ReadMsgpackFunction(ClientContext &context,
     // transform msgpack values
     for (idx_t col_idx = 0; col_idx < column_count; col_idx++) {
       auto result = *result_vectors[col_idx];
-      Transform(values_by_column[col_idx], result, row_count);
+      MsgpackTransform(values_by_column[col_idx], result, row_count);
     }
   }
 }
