@@ -39,6 +39,7 @@ Then, load the extension:
 LOAD 'build/release/extension/msgpack_maps/msgpack_maps.duckdb_extension';
 ```
 
+## Usage
 ### read msgpack files
 msgpack files can be read by `read_msgpack` function. It supports only scan of map values.
 ```sql
