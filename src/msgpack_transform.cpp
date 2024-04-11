@@ -148,6 +148,10 @@ bool MsgpackTransform(msgpack::object *values[], Vector &result,
     return TransformNumerical<uint32_t>(values, result, count);
   case LogicalTypeId::UBIGINT:
     return TransformNumerical<uint64_t>(values, result, count);
+  case LogicalTypeId::HUGEINT:
+    return TransformNumerical<hugeint_t>(values, result, count);
+  case LogicalTypeId::UHUGEINT:
+    return TransformNumerical<uhugeint_t>(values, result, count);
   case LogicalTypeId::FLOAT:
     return TransformNumerical<float>(values, result, count);
   case LogicalTypeId::DOUBLE:
@@ -167,7 +171,14 @@ bool MsgpackTransform(msgpack::object *values[], Vector &result,
     return TransformFromString(values, result, count);
   case LogicalTypeId::CHAR:
   case LogicalTypeId::VARCHAR:
+  case LogicalTypeId::BLOB:
     return TransformToString(values, result, count);
+  case LogicalTypeId::STRUCT:
+  case LogicalTypeId::LIST:
+  case LogicalTypeId::MAP:
+  case LogicalTypeId::UNION:
+  case LogicalTypeId::ARRAY:
+    // TODO: implement
   default:
     throw NotImplementedException(
         "Cannot read a value of type %s from a msgpack file",
