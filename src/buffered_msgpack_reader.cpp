@@ -159,9 +159,8 @@ void BufferedMsgpackReader::OpenMsgpackFile() {
   D_ASSERT(!IsDone());
   lock_guard<mutex> guard(lock);
   auto &file_system = FileSystem::GetFileSystem(context);
-  auto regular_file_handle =
-      file_system.OpenFile(file_name.c_str(), FileFlags::FILE_FLAGS_READ,
-                           FileLockType::NO_LOCK, options.compression);
+  auto regular_file_handle = file_system.OpenFile(
+      file_name.c_str(), FileFlags::FILE_FLAGS_READ | options.compression);
   file_handle = make_uniq<MsgpackFileHandle>(std::move(regular_file_handle),
                                              BufferAllocator::Get(context));
 }
