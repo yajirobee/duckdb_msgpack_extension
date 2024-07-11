@@ -16,7 +16,9 @@ public:
   BufferedMsgpackReaderOptions options;
 
   //! The files we're reading
-  vector<string> files;
+  unique_ptr<MultiFileList> files;
+  unique_ptr<MultiFileReader> multi_file_reader;
+
   //! Initial file reader
   unique_ptr<BufferedMsgpackReader> initial_reader;
   //! The readers
@@ -30,9 +32,11 @@ public:
 
 public:
   void Bind(ClientContext &context, TableFunctionBindInput &input) {
+    multi_file_reader = MultiFileReader::Create(input.table_function);
+
     for (auto &kv : input.named_parameters) {
-      if (MultiFileReader::ParseOption(kv.first, kv.second,
-                                       options.file_options, context)) {
+      if (multi_file_reader->ParseOption(kv.first, kv.second,
+                                         options.file_options, context)) {
         continue;
       }
       auto loption = StringUtil::Lower(kv.first);
@@ -41,16 +45,17 @@ public:
       }
     }
 
-    files = MultiFileReader::GetFileList(context, input.inputs[0], "Msgpack");
+    files = multi_file_reader->CreateFileList(context, input.inputs[0]);
 
-    union_readers.resize(files.empty() ? 0 : files.size() - 1);
-    for (idx_t file_idx = 0; file_idx < files.size(); file_idx++) {
+    union_readers.resize(files->IsEmpty() ? 0 : files->GetTotalFileCount() - 1);
+    for (idx_t file_idx = 0; file_idx < files->GetTotalFileCount();
+         file_idx++) {
       if (file_idx == 0) {
-        initial_reader =
-            make_uniq<BufferedMsgpackReader>(context, options, files[0]);
+        initial_reader = make_uniq<BufferedMsgpackReader>(
+            context, options, files->GetFirstFile());
       } else {
-        union_readers[file_idx - 1] =
-            make_uniq<BufferedMsgpackReader>(context, options, files[file_idx]);
+        union_readers[file_idx - 1] = make_uniq<BufferedMsgpackReader>(
+            context, options, files->GetPaths()[file_idx]);
       }
     }
   }
