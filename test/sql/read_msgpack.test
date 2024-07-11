@@ -2,7 +2,7 @@
 # description: Read msgpack files straight to columnar data
 # group: [table]
 
-require duckdb_msgpack
+require msgpack_maps
 
 statement ok
 pragma enable_verification
