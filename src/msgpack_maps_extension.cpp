@@ -104,7 +104,8 @@ ReadMsgpackInitLocal(ExecutionContext &context, TableFunctionInitInput &input,
   return std::move(result);
 }
 
-template <class T> static T *AllocateArray(ArenaAllocator &allocator, idx_t count) {
+template <class T>
+static T *AllocateArray(ArenaAllocator &allocator, idx_t count) {
   return reinterpret_cast<T *>(allocator.Allocate(sizeof(T) * count));
 }
 
@@ -193,7 +194,7 @@ void MsgpackMapsExtension::Load(DuckDB &db) {
 
   table_function.named_parameters["columns"] = LogicalType::ANY;
 
-  auto info = make_shared<MsgpackScanInfo>();
+  auto info = make_shared_ptr<MsgpackScanInfo>();
   table_function.function_info = std::move(info);
   auto function = MultiFileReader::CreateFunctionSet(table_function);
   ExtensionUtil::RegisterFunction(db_instance, function);

@@ -241,6 +241,6 @@ void MsgpackScanLocalState::ThrowInvalidAtEndError() {
 
 bool MsgpackScanLocalState::IsParallel(MsgpackScanGlobalState &gstate) const {
   // More files than threads, just parallelize over the files
-  return bind_data.files.size() < gstate.system_threads;
+  return bind_data.files->GetTotalFileCount() < gstate.system_threads;
 }
 } // namespace duckdb
