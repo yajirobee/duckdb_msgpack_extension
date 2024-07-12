@@ -88,7 +88,7 @@ static inline bool GetValueString(msgpack::object const &obj, string_t &result,
     result = StringCast::Operation<double>(obj.as<double>(), vector);
     return true;
   case msgpack::type::STR:
-    obj.convert<string_t>(result);
+    result = StringVector::AddString(vector, obj.via.str.ptr, obj.via.str.size);
     return true;
   case msgpack::type::BIN:
   case msgpack::type::ARRAY:
